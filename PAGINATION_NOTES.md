@@ -98,6 +98,7 @@ Existing repository declaration:
 
 ```java
 public interface ProductRepository extends JpaRepository<Product, Long> {
+    Page<Product> findByCategory(String category, Pageable pageable);
 }
 ```
 
@@ -136,7 +137,27 @@ public Page<Product> getProduct(@RequestParam int page,
 }
 ```
 
-Both query parameters are currently **required**. There are no defaults, explicit input bounds, or sort parameters in this controller.
+Both query parameters are **required on the base endpoint**. The sorting and category endpoints below supply defaults. None of the endpoints explicitly validates numeric bounds.
+
+### Sorting and category endpoints
+
+| Endpoint | Parameters and defaults | Behavior |
+| --- | --- | --- |
+| `GET /api/v1/products` | Required `page`, `size` | Unsorted page of all products. |
+| `GET /api/v1/products/sort` | `page=0`, `size=5`, `sortBy=price`, `direction=asc` | Single-property sorting before pagination. |
+| `GET /api/v1/products/category/{category}` | Required category path; `page=0`, `size=5` | Category equality filter before pagination; totals count matching products only. |
+
+Examples:
+
+```http
+GET http://localhost:8080/api/v1/products/sort
+GET http://localhost:8080/api/v1/products/sort?page=0&size=5&sortBy=price&direction=desc
+GET http://localhost:8080/api/v1/products/category/Electronics?page=0&size=5
+```
+
+`getProductsWithSorting` builds a `Sort` and passes it to `PageRequest.of(page, size, sort)`. Only `desc` (case-insensitive) selects descending order; every other direction selects ascending order. `sortBy` uses entity property names such as `id`, `name`, `category`, `price`, and `isAvailable`, not column names such as `is_available`. Unknown properties are not validated before querying. Equal prices have no unique tie-breaker.
+
+`getProductsByCategory` calls the repository's derived `findByCategory(category, pageable)` query. Matching follows database equality semantics; it is not a substring search. Category pages have no explicit sort. URL-encode category path values containing spaces or other reserved characters.
 
 ### Step 5: Request pages
 
@@ -226,7 +247,7 @@ Sort sort = Sort.by("price").ascending()
 Pageable pageable = PageRequest.of(page, size, sort);
 ```
 
-Sorting uses Java entity property names. If exposing sorting through query parameters, allow only supported properties. The current endpoint does not read a `sort` parameter.
+Sorting uses Java entity property names. The existing `/sort` endpoint accepts `sortBy` and `direction` but has no property allowlist or unique tie-breaker. The base endpoint does not read a `sort` parameter.
 
 ### Add defaults and validate bounds
 
@@ -279,7 +300,30 @@ With a known set of sample products, inspect these cases:
 | Negative page or zero size | Invalid input; current code lacks explicit error mapping. |
 | Very large size | Current code has no application-level maximum. |
 
-These are proposed manual checks, not recorded test results. The application and database were not started while preparing these documentation notes.
+### Runnable Postman scenarios
+
+Import [product-pagination.postman_collection.json](postman/product-pagination.postman_collection.json) into Postman. It contains 25 GET requests with assertions, grouped into ordinary scenarios and current error behavior.
+
+1. Start PostgreSQL and the application (`.\mvnw.cmd spring-boot:run` on Windows).
+2. Set collection variable `baseUrl` if the server is not at `http://localhost:8080`.
+3. Set `category` to a category in your data (default `Electronics`). Set `missingCategory` to a value absent from your database.
+4. Run the whole collection in order. The discovery request sets `beyondPage` from actual totals before the out-of-range request.
+5. Inspect failed assertions in the runner. With the Postman CLI installed, run `postman collection run postman/product-pagination.postman_collection.json`.
+
+Use a local dataset with at least 12 products, several distinct non-null prices, repeated prices, and at least three products in the selected category. Empty data can pass ordering and category checks vacuously. For the incomplete final-page case, use a total not divisible by the page size and manually request `totalPages - 1`. Test the empty-table case separately in a disposable database; the collection never deletes or inserts records.
+
+| Scenarios | Assertions / expected result |
+| --- | --- |
+| First, second, size-one and out-of-range pages | HTTP 200; page number, size, content count, totals arithmetic; out-of-range content empty. |
+| Default sorting, descending, uppercase `DESC`, fallback direction, ID sorting | HTTP 200; monotonic prices or strictly increasing IDs within the returned page. Null prices are excluded from price comparisons. |
+| Default category and second category page | HTTP 200; matching category on each returned product and paging metadata. |
+| Missing category value in the database | HTTP 200; empty content and zero matching total. |
+| Missing required parameters and non-integer values | HTTP 400 from request binding. |
+| Negative page, nonpositive size, invalid property | Current code is expected to return HTTP 500 because exceptions lack explicit mapping. The separate folder records this gap; it does not endorse 500 as the desired contract. |
+
+Successful response assertions target the current direct `Page` JSON fields (`content`, `number`, `size`, `numberOfElements`, `totalElements`, `totalPages`). Update the collection if a response DTO or serialization mode changes these fields. Error checks intentionally avoid framework-dependent error-body text. If validation is added later, change the corresponding error assertions to the intended 400 contract.
+
+Validation on 2026-10-21 against the running local API at `http://localhost:8080`: all 25 requests and 47 assertions passed using the Postman CLI. This includes the current HTTP 500 behavior for invalid bounds and unknown sort properties. The CLI reported that cloud publication requires login; results were available locally. The selected category's second page was empty, so this run does not establish filtering over a populated second page. Empty-table and controlled incomplete-final-page scenarios remain manual checks. Sorting assertions check each returned page; they do not establish snapshot consistency across concurrent database changes.
 
 ## 10. Quick revision
 

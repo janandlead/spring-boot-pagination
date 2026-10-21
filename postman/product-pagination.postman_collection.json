@@ -1,0 +1,548 @@
+{
+  "info": {
+    "name": "Product pagination scenarios",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Read-only checks for the existing API. Run against a local application with PostgreSQL available. Populate multiple products and prices for meaningful sorting checks. The Current error behavior folder characterizes unhandled errors (500), not desired validation. See PAGINATION_NOTES.md."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "category",
+      "value": "Electronics"
+    },
+    {
+      "key": "missingCategory",
+      "value": "__postman_missing_category__"
+    },
+    {
+      "key": "beyondPage",
+      "value": "1000000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Pagination, sorting, category and binding",
+      "item": [
+        {
+          "name": "First page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=0&size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Second page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=1&size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(1); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Single product page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=0&size=1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(1); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(1); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 1)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Discover out-of-range page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=0&size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });",
+                  "pm.collectionVariables.set(\"beyondPage\", String(body.totalPages + 1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Beyond last page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page={{beyondPage}}&size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(Number(pm.collectionVariables.get(\"beyondPage\"))); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });",
+                  "pm.test(\"Empty page\", () => pm.expect(body.content).to.eql([]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sorting defaults",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/sort"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });",
+                  "pm.test(\"Prices ascending\", () => { const prices = body.content.map(p => p.price).filter(p => p !== null); for (let i=1; i<prices.length; i++) pm.expect(prices[i]).to.be.at.least(prices[i-1]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Price descending",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/sort?page=0&size=5&sortBy=price&direction=desc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });",
+                  "pm.test(\"Prices descending\", () => { const prices = body.content.map(p => p.price).filter(p => p !== null); for (let i=1; i<prices.length; i++) pm.expect(prices[i]).to.be.at.most(prices[i-1]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Case-insensitive descending",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/sort?direction=DESC"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });",
+                  "pm.test(\"Prices descending\", () => { const p = body.content.map(x => x.price).filter(x => x !== null); for(let i=1;i<p.length;i++) pm.expect(p[i]).to.be.at.most(p[i-1]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown direction falls back to ascending",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/sort?direction=unexpected"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });",
+                  "pm.test(\"Prices ascending\", () => { const prices = body.content.map(p => p.price).filter(p => p !== null); for (let i=1; i<prices.length; i++) pm.expect(prices[i]).to.be.at.least(prices[i-1]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unique ID ordering",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/sort?sortBy=id&direction=asc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });",
+                  "pm.test(\"IDs strictly increasing\", () => { for(let i=1;i<body.content.length;i++) pm.expect(body.content[i].id).to.be.above(body.content[i-1].id); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Category defaults",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/category/{{category}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });",
+                  "pm.test(\"Category matches\", () => body.content.forEach(p => pm.expect(p.category).to.eql(pm.variables.get(\"category\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Category second page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/category/{{category}}?page=1&size=2"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(1); pm.expect(body.size).to.eql(2); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(2); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 2)); });",
+                  "pm.test(\"Category matches\", () => body.content.forEach(p => pm.expect(p.category).to.eql(pm.variables.get(\"category\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/category/{{missingCategory}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Page metadata and content\", () => { pm.expect(body.content).to.be.an(\"array\"); pm.expect(body.number).to.eql(0); pm.expect(body.size).to.eql(5); pm.expect(body.numberOfElements).to.eql(body.content.length); pm.expect(body.content.length).to.be.at.most(5); pm.expect(body.totalElements).to.be.at.least(body.content.length); pm.expect(body.totalPages).to.eql(Math.ceil(body.totalElements / 5)); });",
+                  "pm.test(\"No matching products\", () => { pm.expect(body.content).to.eql([]); pm.expect(body.totalElements).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing size",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=0"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Non-integer page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=abc&size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Non-integer size",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=0&size=abc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid sorting page type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/sort?page=abc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid category size type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/category/{{category}}?size=abc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Current error behavior - validation gaps",
+      "item": [
+        {
+          "name": "Negative page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=-1&size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 500\", () => pm.response.to.have.status(500));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Zero size",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=0&size=0"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 500\", () => pm.response.to.have.status(500));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negative size",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products?page=0&size=-1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 500\", () => pm.response.to.have.status(500));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown sort property",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/sort?sortBy=notAProductProperty"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 500\", () => pm.response.to.have.status(500));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Category negative page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/category/{{category}}?page=-1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 500\", () => pm.response.to.have.status(500));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sort zero size",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/sort?size=0"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 500\", () => pm.response.to.have.status(500));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
